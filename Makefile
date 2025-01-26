@@ -4,5 +4,6 @@ build:
 test:
 	@go test -v ./...
 
-run: build
+
+run: build 
 	@./bin/ecom
