@@ -23,9 +23,9 @@ func NewAPIServer(addr string, db *sql.DB) *APIServer {
 
 func (s *APIServer) RUN() error {
   router := chi.NewRouter()
-
+  userStore := user.NewStore(s.db)
   router.Route("/api/v1", func(r chi.Router) {
-    userHandler := user.NewHandler()
+    userHandler := user.NewHandler(userStore)
     userHandler.RegisterRoutes(r) // Pass the router `r` here
   })
 
