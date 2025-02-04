@@ -1,13 +1,15 @@
 package user
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-  "fmt"
 
+	"github.com/UmairAhmedImran/ecom/service/auth"
 	"github.com/UmairAhmedImran/ecom/types"
 	"github.com/UmairAhmedImran/ecom/utils"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 )
 
 type Handler struct {
@@ -34,9 +36,18 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
  // get JSON payload
  var payload types.RegisterUserPayload 
- if err := utils.ParseJSON(r, payload); err != nil {
+ if err := utils.ParseJSON(r, &payload); err != nil {
     utils.WriteError(w, http.StatusBadRequest, err)
+    return
  }
+
+ // validate the paylaod
+ if err := utils.Validate.Struct(payload); err != nil {
+  errors := err.(validator.ValidationErrors)
+  utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
+  return
+ }
+
  // check if user exists
  _, err := h.store.GetUserByEmail(payload.Email)
  if err != nil {
@@ -61,5 +72,5 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
     utils.WriteError(w, http.StatusInternalServerError, err)
     return
   }
-  utils.WriteJSON(w, http.StatusCreated, nil
+  utils.WriteJSON(w, http.StatusCreated, nil)
 }
