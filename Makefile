@@ -4,9 +4,9 @@ MIGRATION_PATH = ./cmd/migrate/migrations
 create_migrations:
 	sqlx migrate add -r init
 migrate-up:
-	sqlx migrate run --database-url "postgres://${DB_USER}:${PASSWD}@${HOST}:${PORT}/${DB_NAME}?sslmode=disable"
+	sqlx migrate run --database-url "${DB_URL}"
 migrate-down:
-	sqlx migrate revert --database-url "postgres://${DB_USER}:${PASSWD}@${HOST}:${PORT}/${DB_NAME}?sslmode=disable"
+	sqlx migrate revert --database-url "${DB_URL}"
 stop_containers:
 	@echo "Stopping other docker containers"
 	@if test -n "$$(docker ps -q)"; then \
@@ -26,17 +26,17 @@ start_container:
 	docker start ${DB_DOCKER_CONTAINER}
 
 build:
-	if [ -f "${BINARY}" ]; then \
-		rm ${BINARY}; \
-		echo "Deleted ${BINARY}"; \
+	@mkdir -p bin
+	if [ -f "bin/${BINARY}" ]; then \
+		rm bin/${BINARY}; \
+		echo "Deleted old binary"; \
 	fi
 	@echo "Building binary..."
-	go build -o ${BINARY} cmd/main.go
+	go build -o bin/${BINARY} cmd/main.go
 
 run: build
-	./${BINARY}
-#@@echo "api started..."
-
+	@echo "Starting API..."
+	@bin/${BINARY}
 stop:
 	@echo "stopping server..."
 	@-pkill -SIGTERM -f "./${BINARY}"

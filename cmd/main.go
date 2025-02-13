@@ -9,15 +9,15 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main()  {
-  godotenv.Load()
-  db, err := db.NewPostgresStorage()
-  if err!= nil {
-    log.Fatal(err)
-  }
-  addr := config.GetEnv("ADDR_PORT", ":3000")
-  server := api.NewAPIServer(addr, db)
-  if err := server.RUN(); err != nil {
-    log.Fatal(err)
-  }
+func main() {
+	godotenv.Load()
+	db, err := db.NewPostgresStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+	addr := config.GetEnv("ADDR_PORT", ":3000")
+	server := api.NewAPIServer(addr, db)
+	if err := server.RUN(); err != nil {
+		log.Fatal(err)
+	}
 }
