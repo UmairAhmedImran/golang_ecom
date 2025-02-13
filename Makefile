@@ -1,20 +1,7 @@
+# Don't ask me what is going in this Makefile
 include .env
 MIGRATION_PATH = ./cmd/migrate/migrations
 
-create_migrations:
-	sqlx migrate add -r init
-migrate-up:
-	sqlx migrate run --database-url "${DB_URL}"
-migrate-down:
-	sqlx migrate revert --database-url "${DB_URL}"
-stop_containers:
-	@echo "Stopping other docker containers"
-	@if test -n "$$(docker ps -q)"; then \
-		echo "Found and stopped containers"; \
-		docker stop $$(docker ps -q); \
-	else \
-		echo "No containers running..."; \
-	fi
 
 create_container:
 	docker run --name ${DB_DOCKER_CONTAINER} -p 5436:5432 -e POSTGRES_USER=${DB_USER} -e POSTGRES_PASSWORD=${PASSWD} -d postgres:16-alpine
@@ -44,3 +31,22 @@ stop:
 
 test:
 	@go test -v ./...
+
+create_migrations:
+	sqlx migrate add -r $(filter-out $@,$(MAKECMDGOALS))
+
+# This line prevents make from trying to interpret the arguments as targets
+%:
+	@:
+migrate-up:
+	sqlx migrate run --database-url "${DB_URL}"
+migrate-down:
+	sqlx migrate revert --database-url "${DB_URL}"
+stop_containers:
+	@echo "Stopping other docker containers"
+	@if test -n "$$(docker ps -q)"; then \
+		echo "Found and stopped containers"; \
+		docker stop $$(docker ps -q); \
+	else \
+		echo "No containers running..."; \
+	fi
