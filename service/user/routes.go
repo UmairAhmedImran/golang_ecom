@@ -30,7 +30,33 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	log.Println("healthCheck")
 }
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
-	log.Println("handleLogin")
+	// Get JSON payload
+	var payload types.LoginUserPayload
+	if err := utils.ParseJSON(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Validate the payload
+	if err := utils.Validate.Struct(payload); err != nil {
+		errors := err.(validator.ValidationErrors)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
+		return
+	}
+
+	// check if user exists
+	user, err := h.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
+		return
+	}
+
+	if !auth.ComparePassword(user.Password, []byte(payload.Password)) {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("not found, invalid email or password"))
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": ""})
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -50,8 +76,8 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user exists
 	_, err := h.store.GetUserByEmail(payload.Email)
-	if err == nil {
-		utils.WriteError(w, http.StatusConflict, fmt.Errorf("user with email %s already exists", payload.Email))
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", payload.Email))
 		return
 	}
 
@@ -73,6 +99,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
+	fmt.Println("User created successfully")
 
 	utils.WriteJSON(w, http.StatusCreated, nil)
 }
