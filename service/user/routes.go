@@ -45,24 +45,28 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// check if user exists
+	// Check if user exists
 	user, err := h.store.GetUserByEmail(payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
 	}
 
+	// Compare passwords
 	if !auth.ComparePassword(user.Password, []byte(payload.Password)) {
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("not found, invalid email or password"))
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid email or password"))
 		return
 	}
 
-  secret := []byte(config.GetEnv("JWT_SECRET", ""))
-  token, err := auth.CreateJWT(secret, user.ID)
-  if err != nil {
-        utils.WriteError(w, http.StatusInternalServerError, err)
-        return
-    }
+	// Create JWT token
+	secret := []byte(config.GetEnv("JWT_SECRET", ""))
+	token, err := auth.CreateJWT(secret, user.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Return the token
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
 }
 
@@ -83,7 +87,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user exists
 	_, err := h.store.GetUserByEmail(payload.Email)
-	if err != nil {
+	if err == nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", payload.Email))
 		return
 	}

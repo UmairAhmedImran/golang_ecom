@@ -1,15 +1,14 @@
 package auth
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func CreateJWT(secret []byte, userID int) (string, error) {
+func CreateJWT(secret []byte, userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"userId":    strconv.Itoa(userID),
+		"userId":    userID,
 		"expiredAt": time.Now().Add(time.Hour * 24).Unix(),
 	})
 
