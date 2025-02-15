@@ -7,7 +7,7 @@ type UserStore interface {
 }
 
 type User struct {
-	ID        int64  `json:"id"`
+	ID        int  `json:"id"`
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Email     string `json:"email"`

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/UmairAhmedImran/ecom/config"
 	"github.com/UmairAhmedImran/ecom/service/auth"
 	"github.com/UmairAhmedImran/ecom/types"
 	"github.com/UmairAhmedImran/ecom/utils"
@@ -56,7 +57,13 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": ""})
+  secret := []byte(config.GetEnv("JWT_SECRET", ""))
+  token, err := auth.CreateJWT(secret, user.ID)
+  if err != nil {
+        utils.WriteError(w, http.StatusInternalServerError, err)
+        return
+    }
+	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
