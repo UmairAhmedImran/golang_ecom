@@ -16,6 +16,9 @@ type User struct {
 	Password  string    `json:"-"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
+	Otp       string    `json:"otp"`
+	OtpExpiry time.Time `json:"otp_expiry"`
+	Verified  bool      `json:"verified"`
 }
 
 type RegisterUserPayload struct {

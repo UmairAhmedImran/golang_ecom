@@ -18,26 +18,29 @@ func NewStore(db *sql.DB) *Store {
 
 func (s *Store) GetUserByEmail(email string) (*types.User, error) {
 	log.Printf("Querying database for email: %s", email) // Log the email being queried
+
+	// Query the database
 	rows, err := s.db.Query("SELECT * FROM users WHERE email = $1", email)
 	if err != nil {
 		log.Printf("Database query error: %v", err) // Log any query errors
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() // Ensure rows are closed after use
 
+	// Check if there is at least one row
 	if !rows.Next() {
-		log.Printf("No user found for email: %s", email) // Log if no user is found
-		return nil, fmt.Errorf("user not found")
+		log.Printf("No user found with email: %s", email) // Log if no user is found
+		return nil, nil                                   // Return nil user and nil error
 	}
 
-	u := new(types.User)
 	// Scan the row into the User struct
-	u, err = scanRowIntoUser(rows)
+	u, err := scanRowIntoUser(rows)
 	if err != nil {
 		log.Printf("Error scanning row into user: %v", err) // Log scanning errors
 		return nil, err
 	}
 
+	// Check for errors during row iteration
 	if err := rows.Err(); err != nil {
 		log.Printf("Row iteration error: %v", err) // Log row iteration errors
 		return nil, err
@@ -56,6 +59,9 @@ func scanRowIntoUser(rows *sql.Rows) (*types.User, error) {
 		&user.Password,
 		&user.CreatedAt,
 		&user.UpdatedAt,
+		&user.Otp,
+		&user.OtpExpiry,
+		&user.Verified,
 	)
 	if err != nil {
 		return nil, err
@@ -83,7 +89,7 @@ func (s *Store) GetUserByID(id int) (*types.User, error) {
 }
 
 func (s *Store) CreateUser(user types.User) error {
-	_, err := s.db.Exec(`INSERT INTO users ("firstName", "lastName", email, password) VALUES ($1, $2, $3, $4)`, user.FirstName, user.LastName, user.Email, user.Password)
+	_, err := s.db.Exec(`INSERT INTO users ("firstName", "lastName", email, password, otp, otp_expiry, verified) VALUES ($1, $2, $3, $4, $5, $6, $7)`, user.FirstName, user.LastName, user.Email, user.Password, user.Otp, user.OtpExpiry, user.Verified)
 	if err != nil {
 		return err
 	}

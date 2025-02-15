@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/UmairAhmedImran/ecom/config"
 	"github.com/UmairAhmedImran/ecom/service/auth"
@@ -86,8 +87,12 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user exists
-	_, err := h.store.GetUserByEmail(payload.Email)
-	if err == nil {
+	existingUser, err := h.store.GetUserByEmail(payload.Email)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to check user existence: %w", err))
+		return
+	}
+	if existingUser != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", payload.Email))
 		return
 	}
@@ -99,18 +104,31 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate OTP and set expiry time
+	otp := auth.GenerateOTP()
+	otpExpiry := time.Now().Add(time.Minute * 10) // OTP expires in 10 minutes
+
 	// Create new user
 	err = h.store.CreateUser(types.User{
 		FirstName: payload.FirstName,
 		LastName:  payload.LastName,
 		Email:     payload.Email,
 		Password:  hashedPassword,
+		Otp:       otp,
+		OtpExpiry: otpExpiry,
+		Verified:  false,
 	})
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	fmt.Println("User created successfully")
+
+	// Send OTP to user's email
+	err = auth.SendOTPEmail(payload.Email, otp)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
 
 	utils.WriteJSON(w, http.StatusCreated, nil)
 }
