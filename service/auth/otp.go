@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"net/mail"
 	"net/smtp"
 
 	"github.com/UmairAhmedImran/ecom/config"
@@ -19,29 +20,6 @@ func GenerateOTP() string {
 	log.Println("OTP: ", n)
 	return fmt.Sprintf("%06d", n%1000000) // Ensures the OTP is always 6 digits
 }
-
-// func SendOTPEmail(email, otp string) error {
-// 	// SMTP settings
-// 	smtpHost := config.GetEnv("SMTP_HOST", "")
-// 	smtpPort := config.GetEnv("SMTP_PORT", "")
-// 	to := email
-// 	smtpUser := config.GetEnv("SMTP_USER", "")
-// 	smtpPassword := config.GetEnv("SMTP_PASSWORD", "")
-
-// 	auth := smtp.PlainAuth("", smtpUser, smtpPassword, smtpHost)
-
-// 	subject := "Your OTP for Email Verification"
-// 	body := fmt.Sprintf("Your OTP is: %s. It will expire in 10 minutes.", otp)
-// 	message := fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body)
-
-// 	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpUser, []string{to}, []byte(message))
-// 	if err != nil {
-// 		return err
-// 	}
-// 	log.Println("OTP sent to: ", email)
-
-//		return nil
-//	}
 func SendOTPEmail(email, otp string) error {
 	smtpHost := config.GetEnv("SMTP_HOST", "")
 	smtpPort := config.GetEnv("SMTP_PORT", "")
@@ -55,17 +33,30 @@ func SendOTPEmail(email, otp string) error {
 
 	auth := smtp.PlainAuth("", smtpUser, smtpPassword, smtpHost)
 
+	from := mail.Address{Name: "Umair", Address: config.GetEnv("SMTP_FROM", "")} // Replace with your verified email
+	to := mail.Address{Name: "", Address: email}
+
+	log.Println(config.GetEnv("SMTP_FROM", ""))
+
 	subject := "Your OTP for Email Verification"
 	body := fmt.Sprintf("Your OTP is: %s. It will expire in 10 minutes.", otp)
-	message := fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body)
+	// Build the message headers and body
+	message := fmt.Sprintf(
+    	"From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+    	from.String(),        // "Umair <umairahmedimranbutt@gmail.com>"
+    	to.String(),          // "<recipient@example.com>"
+    	subject,
+    	body,
+)
 
 	// Log the email details
 	log.Printf("Attempting to send email to: %s", email)
 	log.Printf("SMTP Host: %s, Port: %s", smtpHost, smtpPort)
 	log.Printf("SMTP User: %s", smtpUser)
+	log.Printf("From Email: %s", from.Address)
 
-	// Send the email
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, smtpUser, []string{email}, []byte(message))
+	// Send email using SMTP
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from.Address, []string{to.Address}, []byte(message))
 	if err != nil {
 		log.Printf("Failed to send email: %v", err)
 		return fmt.Errorf("failed to send email: %w", err)

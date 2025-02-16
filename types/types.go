@@ -6,6 +6,7 @@ type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByID(id int) (*User, error)
 	CreateUser(User) error
+	MarkUserAsVerified(userID string) error
 }
 
 type User struct {
@@ -31,4 +32,8 @@ type RegisterUserPayload struct {
 type LoginUserPayload struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
+}
+
+type VerifyOTPPayload struct {
+	OTP string `json:"otp" validate:"required,len=6"`
 }

@@ -95,3 +95,9 @@ func (s *Store) CreateUser(user types.User) error {
 	}
 	return nil
 }
+
+func (s *Store) MarkUserAsVerified(userID string) error {
+	query := `UPDATE users SET verified = TRUE WHERE id = $1`
+	_, err := s.db.Exec(query, userID)
+	return err
+}

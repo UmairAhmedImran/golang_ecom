@@ -76,3 +76,6 @@ func (m *mockUserStore) GetUserByID(id int) (*types.User, error) {
 func (m *mockUserStore) CreateUser(types.User) error {
 	return nil
 }
+func (m *mockUserStore) MarkUserAsVerified(userID string) error {
+    return nil
+}
