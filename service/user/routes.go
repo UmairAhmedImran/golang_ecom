@@ -27,13 +27,12 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/register", h.handleRegister)
 	router.Post("/handle-verify", h.handleVerify)
 	router.Post("/resend-otp", h.handleResendOTP)
-	router.Get("/health", h.handleHealth)
 	router.Post("/forgot-password/init", h.handleForgotPasswordInit)
 	router.Post("/forgot-password/complete", h.handleForgotPasswordComplete)
-}
+	router.Post("/logout", h.handleLogout)
+	router.Post("/refresh", h.handleRefresh)
+	router.Post("/logout", h.handleLogout)
 
-func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
-	log.Println("healthCheck")
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -77,9 +76,41 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
+	refreshToken, err := auth.GenerateRandomToken(32)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	// Define a refresh token expiry time, for example, 7 days
+	refreshExpiry := time.Now().Add(7 * 24 * time.Hour)
 
-	// Return the token
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"token": token})
+	// Store the refresh token in your database
+	rt := types.RefreshToken{
+		Token:     refreshToken,
+		UserID:    user.ID,
+		ExpiresAt: refreshExpiry,
+	}
+	if err := h.store.CreateRefreshToken(rt); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Set the refresh token as an HTTP-only, secure cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		Expires:  refreshExpiry,
+		HttpOnly: false, // HttpOnly is false because we are not using HTTPS as of now in development
+		Secure:   false, // Ensure your application is served over HTTPS
+		Path:     "/",   // Set cookie path as needed
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// Return both tokens to the client
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"accessToken":  token,
+		"refreshToken": refreshToken,
+	})
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -344,5 +375,107 @@ func (h *Handler) handleForgotPasswordComplete(w http.ResponseWriter, r *http.Re
 
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "Password updated successfully",
+	})
+}
+
+func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
+	// Retrieve the refresh token from the cookie
+	cookie, err := r.Cookie("refreshToken")
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("refresh token cookie not found"))
+		return
+	}
+	refreshToken := cookie.Value
+
+	// Delete the refresh token from the database
+	if err := h.store.DeleteRefreshToken(refreshToken); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Clear the refresh token cookie by setting a past expiry date
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: false,
+		Secure:   false,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": "Logged out successfully",
+	})
+}
+
+func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	// Get the refresh token from the HTTP-only cookie
+	cookie, err := r.Cookie("refreshToken")
+	if err != nil {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token cookie not found"))
+		return
+	}
+	oldRefreshToken := cookie.Value
+
+	// Validate the old refresh token from the database
+	rt, err := h.store.GetRefreshToken(oldRefreshToken)
+	if err != nil || rt == nil {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("invalid refresh token"))
+		return
+	}
+	if time.Now().After(rt.ExpiresAt) {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token expired"))
+		return
+	}
+
+	// At this point, the old refresh token is valid
+	// Invalidate/delete the old refresh token (rotation)
+	if err := h.store.DeleteRefreshToken(oldRefreshToken); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Generate a new refresh token
+	newRefreshToken, err := auth.GenerateRandomToken(32)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	newRefreshExpiry := time.Now().Add(7 * 24 * time.Hour)
+
+	// Store the new refresh token in the database
+	newRT := types.RefreshToken{
+		Token:     newRefreshToken,
+		UserID:    rt.UserID,
+		ExpiresAt: newRefreshExpiry,
+	}
+	if err := h.store.CreateRefreshToken(newRT); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Generate a new access token
+	secret := []byte(config.GetEnv("JWT_SECRET", ""))
+	newAccessToken, err := auth.CreateJWT(secret, rt.UserID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// Set the new refresh token as an HTTP-only, secure cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    newRefreshToken,
+		Expires:  newRefreshExpiry,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// Return the new access token to the client
+	utils.WriteJSON(w, http.StatusOK, map[string]string{
+		"accessToken": newAccessToken,
 	})
 }

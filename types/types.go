@@ -9,6 +9,10 @@ type UserStore interface {
 	MarkUserAsVerified(userID string) error
 	UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error
 	UpdatePassword(userID string, hashedPassword string) error
+	InvalidateToken(userID string) error
+	CreateRefreshToken(token RefreshToken) error
+	DeleteRefreshToken(token string) error
+	GetRefreshToken(token string) (*RefreshToken, error)
 }
 
 type User struct {
@@ -53,4 +57,10 @@ type ForgotPasswordCompletePayload struct {
 	Email       string `json:"email" validate:"required,email"`
 	OTP         string `json:"otp" validate:"required,len=6"`
 	NewPassword string `json:"newPassword" validate:"required,min=8,max=130"`
+}
+
+type RefreshToken struct {
+	Token     string    `json:"token" validate:"required"`
+	UserID    string    `json:"userId" validate:"required"`
+	ExpiresAt time.Time `json:"expiresAt" validate:"required"`
 }

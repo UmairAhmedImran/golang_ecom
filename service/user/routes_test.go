@@ -86,3 +86,15 @@ func (m *mockUserStore) UpdateUserOTP(userID string, otp string, otpExpiry time.
 func (m *mockUserStore) UpdatePassword(userID string, hashedPassword string) error {
 	return nil
 }
+func (m *mockUserStore) InvalidateToken(userID string) error {
+	return nil
+}
+func (m *mockUserStore) CreateRefreshToken(token types.RefreshToken) error {
+	return nil
+}
+func (m *mockUserStore) DeleteRefreshToken(token string) error {
+	return nil
+}
+func (m *mockUserStore) GetRefreshToken(token string) (*types.RefreshToken, error) {
+	return nil, nil
+}

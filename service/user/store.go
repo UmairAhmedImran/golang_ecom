@@ -114,3 +114,48 @@ func (s *Store) UpdatePassword(userID string, hashedPassword string) error {
 	_, err := s.db.Exec(query, hashedPassword, userID)
 	return err
 }
+
+func (s *Store) InvalidateToken(userID string) error {
+	// Here you can implement logic to invalidate the token, e.g., adding it to a blacklist
+	log.Printf("Invalidating token for user ID: %s", userID)
+	return nil // Return nil for now, as we're just logging
+}
+
+func (s *Store) CreateRefreshToken(token types.RefreshToken) error {
+	_, err := s.db.Exec(`INSERT INTO refresh_tokens ("token", "userId", "expiresAt") VALUES ($1, $2, $3)`, token.Token, token.UserID, token.ExpiresAt)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Store) GetRefreshToken(token string) (*types.RefreshToken, error) {
+	query := `SELECT * FROM refresh_tokens WHERE token = $1`
+	rows, err := s.db.Query(query, token)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	rt := new(types.RefreshToken)
+	for rows.Next() {
+		rt, err = scanRowIntoRefreshToken(rows)
+	}
+	return rt, nil
+}
+
+func scanRowIntoRefreshToken(rows *sql.Rows) (*types.RefreshToken, error) {
+	rt := new(types.RefreshToken)
+	err := rows.Scan(
+		&rt.Token,
+		&rt.UserID,
+		&rt.ExpiresAt,
+	)
+	return rt, err
+}
+
+func (s *Store) DeleteRefreshToken(token string) error {
+	query := `DELETE FROM refresh_tokens WHERE token = $1`
+	_, err := s.db.Exec(query, token)
+	return err
+}
