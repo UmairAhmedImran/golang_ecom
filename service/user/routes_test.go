@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -77,5 +78,11 @@ func (m *mockUserStore) CreateUser(types.User) error {
 	return nil
 }
 func (m *mockUserStore) MarkUserAsVerified(userID string) error {
-    return nil
+	return nil
+}
+func (m *mockUserStore) UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error {
+	return nil
+}
+func (m *mockUserStore) UpdatePassword(userID string, hashedPassword string) error {
+	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/UmairAhmedImran/ecom/types"
 )
@@ -99,5 +100,17 @@ func (s *Store) CreateUser(user types.User) error {
 func (s *Store) MarkUserAsVerified(userID string) error {
 	query := `UPDATE users SET verified = TRUE WHERE id = $1`
 	_, err := s.db.Exec(query, userID)
+	return err
+}
+
+func (s *Store) UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error {
+	query := `UPDATE users SET otp = $1, otp_expiry = $2 WHERE id = $3`
+	_, err := s.db.Exec(query, otp, otpExpiry, userID)
+	return err
+}
+
+func (s *Store) UpdatePassword(userID string, hashedPassword string) error {
+	query := `UPDATE users SET password = $1, "updatedAt" = CURRENT_TIMESTAMP WHERE id = $2`
+	_, err := s.db.Exec(query, hashedPassword, userID)
 	return err
 }

@@ -7,6 +7,8 @@ type UserStore interface {
 	GetUserByID(id int) (*User, error)
 	CreateUser(User) error
 	MarkUserAsVerified(userID string) error
+	UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error
+	UpdatePassword(userID string, hashedPassword string) error
 }
 
 type User struct {
@@ -35,5 +37,20 @@ type LoginUserPayload struct {
 }
 
 type VerifyOTPPayload struct {
-	OTP string `json:"otp" validate:"required,len=6"`
+	Email string `json:"email" validate:"required,email"`
+	OTP   string `json:"otp" validate:"required,len=6"`
+}
+
+type ResendOTPPayload struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ForgotPasswordInitPayload struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+type ForgotPasswordCompletePayload struct {
+	Email       string `json:"email" validate:"required,email"`
+	OTP         string `json:"otp" validate:"required,len=6"`
+	NewPassword string `json:"newPassword" validate:"required,min=8,max=130"`
 }

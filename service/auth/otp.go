@@ -42,12 +42,12 @@ func SendOTPEmail(email, otp string) error {
 	body := fmt.Sprintf("Your OTP is: %s. It will expire in 10 minutes.", otp)
 	// Build the message headers and body
 	message := fmt.Sprintf(
-    	"From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
-    	from.String(),        // "Umair <umairahmedimranbutt@gmail.com>"
-    	to.String(),          // "<recipient@example.com>"
-    	subject,
-    	body,
-)
+		"From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+		from.String(), // "Umair <umairahmedimranbutt@gmail.com>"
+		to.String(),   // "<recipient@example.com>"
+		subject,
+		body,
+	)
 
 	// Log the email details
 	log.Printf("Attempting to send email to: %s", email)
