@@ -14,6 +14,18 @@ type UserStore interface {
 	GetRefreshToken(token string) (*RefreshToken, error)
 }
 
+type ProductStore interface {
+	GetProducts() ([]Product, error)
+}
+
+type Product struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Price     float64   `json:"price"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 type User struct {
 	ID        string    `json:"id"`
 	FirstName string    `json:"firstName"`

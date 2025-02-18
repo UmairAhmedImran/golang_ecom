@@ -416,7 +416,6 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token cookie not found"))
 		return
 	}
-	fmt.Println("refresh token", cookie.Value)
 	oldRefreshToken := cookie.Value
 
 	// Validate the old refresh token from the database
@@ -429,10 +428,6 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token expired"))
 		return
 	}
-	fmt.Println("refresh token from database", rt.Token)
-	fmt.Println("User ID from database", rt.UserID)
-	fmt.Println("Expires at from database", rt.ExpiresAt)
-
 	// At this point, the old refresh token is valid
 	// Invalidate/delete the old refresh token (rotation)
 	if err := h.store.DeleteRefreshToken(rt.UserID); err != nil {
@@ -446,7 +441,6 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	fmt.Println("new refresh token", newRefreshToken)
 	newRefreshExpiry := time.Now().Add(30 * 24 * time.Hour)
 
 	// Store the new refresh token in the database
