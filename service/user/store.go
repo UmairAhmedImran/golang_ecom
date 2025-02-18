@@ -115,12 +115,6 @@ func (s *Store) UpdatePassword(userID string, hashedPassword string) error {
 	return err
 }
 
-func (s *Store) InvalidateToken(userID string) error {
-	// Here you can implement logic to invalidate the token, e.g., adding it to a blacklist
-	log.Printf("Invalidating token for user ID: %s", userID)
-	return nil // Return nil for now, as we're just logging
-}
-
 func (s *Store) CreateRefreshToken(token types.RefreshToken) error {
 	_, err := s.db.Exec(`INSERT INTO refresh_tokens ("token", "userId", "expiresAt") VALUES ($1, $2, $3)`, token.Token, token.UserID, token.ExpiresAt)
 	if err != nil {
@@ -147,8 +141,8 @@ func (s *Store) GetRefreshToken(token string) (*types.RefreshToken, error) {
 func scanRowIntoRefreshToken(rows *sql.Rows) (*types.RefreshToken, error) {
 	rt := new(types.RefreshToken)
 	err := rows.Scan(
-		&rt.Token,
 		&rt.UserID,
+		&rt.Token,
 		&rt.ExpiresAt,
 	)
 	return rt, err
