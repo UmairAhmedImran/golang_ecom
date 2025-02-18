@@ -139,7 +139,7 @@ func (s *Store) GetRefreshToken(token string) (*types.RefreshToken, error) {
 
 	rt := new(types.RefreshToken)
 	for rows.Next() {
-		rt, err = scanRowIntoRefreshToken(rows)
+		rt, _ = scanRowIntoRefreshToken(rows)
 	}
 	return rt, nil
 }

@@ -82,7 +82,7 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Define a refresh token expiry time, for example, 7 days
-	refreshExpiry := time.Now().Add(7 * 24 * time.Hour)
+	refreshExpiry := time.Now().Add(30 * 24 * time.Hour)
 
 	// Store the refresh token in your database
 	rt := types.RefreshToken{
@@ -242,9 +242,9 @@ func (h *Handler) handleResendOTP(w http.ResponseWriter, r *http.Request) {
 
 	// Check if previous OTP is still valid and not expired
 	if !user.OtpExpiry.IsZero() && time.Now().Before(user.OtpExpiry) {
-		timeLeft := user.OtpExpiry.Sub(time.Now()).Minutes()
+		timeLeft := time.Until(user.OtpExpiry)
 		utils.WriteError(w, http.StatusTooManyRequests,
-			fmt.Errorf("please wait %.0f minutes before requesting a new OTP", timeLeft))
+			fmt.Errorf("please wait %d minutes before requesting a new OTP", timeLeft))
 		return
 	}
 
@@ -296,9 +296,9 @@ func (h *Handler) handleForgotPasswordInit(w http.ResponseWriter, r *http.Reques
 
 	// Check if previous OTP is still valid and not expired
 	if !user.OtpExpiry.IsZero() && time.Now().Before(user.OtpExpiry) {
-		timeLeft := user.OtpExpiry.Sub(time.Now()).Minutes()
+		timeLeft := time.Until(user.OtpExpiry)
 		utils.WriteError(w, http.StatusTooManyRequests,
-			fmt.Errorf("please wait %.0f minutes before requesting a new OTP", timeLeft))
+			fmt.Errorf("please wait %d minutes before requesting a new OTP", timeLeft))
 		return
 	}
 
