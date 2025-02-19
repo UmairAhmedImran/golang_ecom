@@ -36,6 +36,7 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.LoginUserPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -51,7 +52,7 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user exists
-	user, err := h.store.GetUserByEmail(payload.Email)
+	user, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
@@ -90,7 +91,7 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		UserID:    user.ID,
 		ExpiresAt: refreshExpiry,
 	}
-	if err := h.store.CreateRefreshToken(rt); err != nil {
+	if err := h.store.CreateRefreshToken(ctx, rt); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -114,6 +115,7 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.RegisterUserPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -129,7 +131,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user exists
-	existingUser, err := h.store.GetUserByEmail(payload.Email)
+	existingUser, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to check user existence: %w", err))
 		return
@@ -151,7 +153,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	otpExpiry := time.Now().Add(time.Minute * 10) // OTP expires in 10 minutes
 
 	// Create new user
-	err = h.store.CreateUser(types.User{
+	err = h.store.CreateUser(ctx, types.User{
 		FirstName: payload.FirstName,
 		LastName:  payload.LastName,
 		Email:     payload.Email,
@@ -175,6 +177,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleVerify(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.VerifyOTPPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -190,7 +193,7 @@ func (h *Handler) handleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if user exists
-	user, err := h.store.GetUserByEmail(payload.Email)
+	user, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
@@ -203,7 +206,7 @@ func (h *Handler) handleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Mark user as verified
-	if err := h.store.MarkUserAsVerified(user.ID); err != nil {
+	if err := h.store.MarkUserAsVerified(ctx, user.ID); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -213,6 +216,7 @@ func (h *Handler) handleVerify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleResendOTP(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.ResendOTPPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -228,7 +232,7 @@ func (h *Handler) handleResendOTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get user by email
-	user, err := h.store.GetUserByEmail(payload.Email)
+	user, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
@@ -253,7 +257,7 @@ func (h *Handler) handleResendOTP(w http.ResponseWriter, r *http.Request) {
 	otpExpiry := time.Now().Add(time.Minute * 10) // OTP expires in 10 minutes
 
 	// Update user with new OTP
-	err = h.store.UpdateUserOTP(user.ID, otp, otpExpiry)
+	err = h.store.UpdateUserOTP(ctx, user.ID, otp, otpExpiry)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
@@ -273,6 +277,7 @@ func (h *Handler) handleResendOTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleForgotPasswordInit(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.ForgotPasswordInitPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -288,7 +293,7 @@ func (h *Handler) handleForgotPasswordInit(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Get user by email
-	user, err := h.store.GetUserByEmail(payload.Email)
+	user, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
@@ -307,7 +312,7 @@ func (h *Handler) handleForgotPasswordInit(w http.ResponseWriter, r *http.Reques
 	otpExpiry := time.Now().Add(time.Minute * 10) // OTP expires in 10 minutes
 
 	// Update user with new OTP
-	err = h.store.UpdateUserOTP(user.ID, otp, otpExpiry)
+	err = h.store.UpdateUserOTP(ctx, user.ID, otp, otpExpiry)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
@@ -326,6 +331,7 @@ func (h *Handler) handleForgotPasswordInit(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *Handler) handleForgotPasswordComplete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get JSON payload
 	var payload types.ForgotPasswordCompletePayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
@@ -341,7 +347,7 @@ func (h *Handler) handleForgotPasswordComplete(w http.ResponseWriter, r *http.Re
 	}
 
 	// Get user by email
-	user, err := h.store.GetUserByEmail(payload.Email)
+	user, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s not found", payload.Email))
 		return
@@ -361,13 +367,13 @@ func (h *Handler) handleForgotPasswordComplete(w http.ResponseWriter, r *http.Re
 	}
 
 	// Update password
-	if err := h.store.UpdatePassword(user.ID, hashedPassword); err != nil {
+	if err := h.store.UpdatePassword(ctx, user.ID, hashedPassword); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
 
 	// Clear the OTP after successful password reset
-	err = h.store.UpdateUserOTP(user.ID, "", time.Time{})
+	err = h.store.UpdateUserOTP(ctx, user.ID, "", time.Time{})
 	if err != nil {
 		// Log the error but don't return it to the user since the password was updated successfully
 		log.Printf("Error clearing OTP: %v", err)
@@ -379,6 +385,7 @@ func (h *Handler) handleForgotPasswordComplete(w http.ResponseWriter, r *http.Re
 }
 
 func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Retrieve the refresh token from the cookie
 	cookie, err := r.Cookie("refreshToken")
 	if err != nil {
@@ -388,7 +395,7 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 	refreshToken := cookie.Value
 
 	// Delete the refresh token from the database
-	if err := h.store.DeleteRefreshToken(refreshToken); err != nil {
+	if err := h.store.DeleteRefreshToken(ctx, refreshToken); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -410,6 +417,7 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	// Get the refresh token from the HTTP-only cookie
 	cookie, err := r.Cookie("refreshToken")
 	if err != nil {
@@ -419,7 +427,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	oldRefreshToken := cookie.Value
 
 	// Validate the old refresh token from the database
-	rt, err := h.store.GetRefreshToken(oldRefreshToken)
+	rt, err := h.store.GetRefreshToken(ctx, oldRefreshToken)
 	if err != nil || rt == nil {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("invalid refresh token"))
 		return
@@ -430,7 +438,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	// At this point, the old refresh token is valid
 	// Invalidate/delete the old refresh token (rotation)
-	if err := h.store.DeleteRefreshToken(rt.UserID); err != nil {
+	if err := h.store.DeleteRefreshToken(ctx, rt.UserID); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -449,7 +457,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		UserID:    rt.UserID,
 		ExpiresAt: newRefreshExpiry,
 	}
-	if err := h.store.CreateRefreshToken(newRT); err != nil {
+	if err := h.store.CreateRefreshToken(ctx, newRT); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}

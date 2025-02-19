@@ -2,6 +2,7 @@ package user
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -68,30 +69,30 @@ func TestUserServiceHandlers(t *testing.T) {
 
 type mockUserStore struct{}
 
-func (m *mockUserStore) GetUserByEmail(email string) (*types.User, error) {
+func (m *mockUserStore) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return nil, fmt.Errorf("user not found")
 }
-func (m *mockUserStore) GetUserByID(id int) (*types.User, error) {
+func (m *mockUserStore) GetUserByID(ctx context.Context, id int) (*types.User, error) {
 	return nil, nil
 }
-func (m *mockUserStore) CreateUser(types.User) error {
+func (m *mockUserStore) CreateUser(ctx context.Context, user types.User) error {
 	return nil
 }
-func (m *mockUserStore) MarkUserAsVerified(userID string) error {
+func (m *mockUserStore) MarkUserAsVerified(ctx context.Context, userID string) error {
 	return nil
 }
-func (m *mockUserStore) UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error {
+func (m *mockUserStore) UpdateUserOTP(ctx context.Context, userID string, otp string, otpExpiry time.Time) error {
 	return nil
 }
-func (m *mockUserStore) UpdatePassword(userID string, hashedPassword string) error {
+func (m *mockUserStore) UpdatePassword(ctx context.Context, userID string, hashedPassword string) error {
 	return nil
 }
-func (m *mockUserStore) CreateRefreshToken(token types.RefreshToken) error {
+func (m *mockUserStore) CreateRefreshToken(ctx context.Context, token types.RefreshToken) error {
 	return nil
 }
-func (m *mockUserStore) DeleteRefreshToken(token string) error {
+func (m *mockUserStore) DeleteRefreshToken(ctx context.Context, token string) error {
 	return nil
 }
-func (m *mockUserStore) GetRefreshToken(token string) (*types.RefreshToken, error) {
+func (m *mockUserStore) GetRefreshToken(ctx context.Context, token string) (*types.RefreshToken, error) {
 	return nil, nil
 }

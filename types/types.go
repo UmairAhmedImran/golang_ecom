@@ -1,21 +1,24 @@
 package types
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type UserStore interface {
-	GetUserByEmail(email string) (*User, error)
-	GetUserByID(id int) (*User, error)
-	CreateUser(User) error
-	MarkUserAsVerified(userID string) error
-	UpdateUserOTP(userID string, otp string, otpExpiry time.Time) error
-	UpdatePassword(userID string, hashedPassword string) error
-	CreateRefreshToken(token RefreshToken) error
-	DeleteRefreshToken(token string) error
-	GetRefreshToken(token string) (*RefreshToken, error)
+	GetUserByEmail(ctx context.Context, email string) (*User, error)
+	GetUserByID(ctx context.Context, id int) (*User, error)
+	CreateUser(ctx context.Context, user User) error
+	MarkUserAsVerified(ctx context.Context, userID string) error
+	UpdateUserOTP(ctx context.Context, userID string, otp string, otpExpiry time.Time) error
+	UpdatePassword(ctx context.Context, userID string, hashedPassword string) error
+	CreateRefreshToken(ctx context.Context, token RefreshToken) error
+	DeleteRefreshToken(ctx context.Context, token string) error
+	GetRefreshToken(ctx context.Context, token string) (*RefreshToken, error)
 }
 
 type ProductStore interface {
-	GetProducts() ([]Product, error)
+	GetProducts(ctx context.Context) ([]Product, error)
 }
 
 type Product struct {

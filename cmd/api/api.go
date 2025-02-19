@@ -1,7 +1,6 @@
 package api
 
 import (
-	"database/sql"
 	"log"
 	"net/http"
 
@@ -9,14 +8,15 @@ import (
 	"github.com/UmairAhmedImran/ecom/service/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmoiron/sqlx"
 )
 
 type APIServer struct {
 	addr string
-	db   *sql.DB
+	db   *sqlx.DB
 }
 
-func NewAPIServer(addr string, db *sql.DB) *APIServer {
+func NewAPIServer(addr string, db *sqlx.DB) *APIServer {
 	return &APIServer{
 		addr: addr,
 		db:   db,

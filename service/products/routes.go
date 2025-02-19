@@ -22,7 +22,8 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 }
 
 func (h *Handler) handleGetProducts(w http.ResponseWriter, r *http.Request) {
-	products, err := h.store.GetProducts()
+	ctx := r.Context()
+	products, err := h.store.GetProducts(ctx)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

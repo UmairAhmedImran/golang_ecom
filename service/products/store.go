@@ -1,35 +1,25 @@
 package products
 
 import (
-	"database/sql"
+	"context"
 
 	"github.com/UmairAhmedImran/ecom/types"
+	"github.com/jmoiron/sqlx"
 )
 
 type Store struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func NewStore(db *sql.DB) *Store {
+func NewStore(db *sqlx.DB) *Store {
 	return &Store{db: db}
 }
 
-func (s *Store) GetProducts() ([]types.Product, error) {
-	query := `SELECT * FROM products`
-	rows, err := s.db.Query(query)
+func (s *Store) GetProducts(ctx context.Context) ([]types.Product, error) {
+	var products []types.Product
+	err := s.db.SelectContext(ctx, &products, "SELECT * FROM products")
 	if err != nil {
 		return nil, err
-	}
-	defer rows.Close()
-
-	products := []types.Product{}
-	for rows.Next() {
-		var product types.Product
-		err := rows.Scan(&product.ID, &product.Name, &product.Price, &product.CreatedAt, &product.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		products = append(products, product)
 	}
 	return products, nil
 }
