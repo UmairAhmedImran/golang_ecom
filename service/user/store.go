@@ -35,7 +35,7 @@ func (s *Store) GetUserByID(ctx context.Context, id int) (*types.User, error) {
 }
 
 func (s *Store) CreateUser(ctx context.Context, user types.User) error {
-	_, err := s.db.NamedExecContext(ctx, `INSERT INTO users (firstName, lastName, email, password, otp, otp_expiry, verified) VALUES (:firstName, :lastName, :email, :password, :otp, :otp_expiry, :verified)`, &user)
+	_, err := s.db.NamedExecContext(ctx, `INSERT INTO users (first_name, last_name, email, password, otp, otp_expiry, verified) VALUES (:first_name, :last_name, :email, :password, :otp, :otp_expiry, :verified)`, &user)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (s *Store) UpdatePassword(ctx context.Context, userID string, hashedPasswor
 }
 
 func (s *Store) CreateRefreshToken(ctx context.Context, token types.RefreshToken) error {
-	_, err := s.db.NamedExecContext(ctx, `INSERT INTO refresh_tokens (token, userId, expiresAt) VALUES (:token, :userId, :expiresAt)`, &token)
+	_, err := s.db.NamedExecContext(ctx, `INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (:user_id, :token, :expires_at)`, &token)
 	return err
 }
 

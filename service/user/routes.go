@@ -87,10 +87,11 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Store the refresh token in your database
 	rt := types.RefreshToken{
-		Token:     refreshToken,
 		UserID:    user.ID,
+		Token:     refreshToken,
 		ExpiresAt: refreshExpiry,
 	}
+	fmt.Println(rt)
 	if err := h.store.CreateRefreshToken(ctx, rt); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
@@ -133,8 +134,12 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	// Check if user exists
 	existingUser, err := h.store.GetUserByEmail(ctx, payload.Email)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to check user existence: %w", err))
-		return
+		if err.Error() == "sql: no rows in result set" {
+			// User does not exist, proceed to create a new user
+		} else {
+			utils.WriteError(w, http.StatusInternalServerError, fmt.Errorf("failed to check user existence: %w", err))
+			return
+		}
 	}
 	if existingUser != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("user with email %s already exists", payload.Email))

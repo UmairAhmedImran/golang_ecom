@@ -4,6 +4,6 @@ CREATE TABLE IF NOT EXISTS products (
   "description" varchar NOT NULL,
   "price" decimal(10, 2) NOT NULL,
   "quantity" int NOT NULL,
-  "createdAt" TIMESTAMP WITH TIME ZONE DEFAUlT NOW(),
-  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAUlT NOW()
+  "created_at" TIMESTAMP WITH TIME ZONE DEFAUlT NOW(),
+  "updated_at" TIMESTAMP WITH TIME ZONE DEFAUlT NOW()
 );
