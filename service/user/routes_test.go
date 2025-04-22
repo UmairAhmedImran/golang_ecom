@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/UmairAhmedImran/ecom/types"
+	"github.com/google/uuid"
 )
 
 func TestUserServiceHandlers(t *testing.T) {
@@ -72,7 +73,7 @@ type mockUserStore struct{}
 func (m *mockUserStore) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
 	return nil, fmt.Errorf("user not found")
 }
-func (m *mockUserStore) GetUserByID(ctx context.Context, id int) (*types.User, error) {
+func (m *mockUserStore) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	return nil, nil
 }
 func (m *mockUserStore) CreateUser(ctx context.Context, user types.User) error {
@@ -95,4 +96,7 @@ func (m *mockUserStore) DeleteRefreshToken(ctx context.Context, token string) er
 }
 func (m *mockUserStore) GetRefreshToken(ctx context.Context, token string) (*types.RefreshToken, error) {
 	return nil, nil
+}
+func (m *mockUserStore) UpdateUserGoogleID(ctx context.Context, userID string, googleID string) error {
+	return nil
 }

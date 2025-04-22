@@ -15,7 +15,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	addr := config.GetEnv("ADDR_PORT", ":3000")
+	addr := config.GetEnv("ADDR_PORT", ":8080")
 	server := api.NewAPIServer(addr, db)
 	if err := server.RUN(); err != nil {
 		log.Fatal(err)

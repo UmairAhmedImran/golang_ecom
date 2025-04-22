@@ -3,11 +3,13 @@ package types
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type UserStore interface {
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
-	GetUserByID(ctx context.Context, id int) (*User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
 	CreateUser(ctx context.Context, user User) error
 	MarkUserAsVerified(ctx context.Context, userID string) error
 	UpdateUserOTP(ctx context.Context, userID string, otp string, otpExpiry time.Time) error
@@ -15,6 +17,7 @@ type UserStore interface {
 	CreateRefreshToken(ctx context.Context, token RefreshToken) error
 	DeleteRefreshToken(ctx context.Context, token string) error
 	GetRefreshToken(ctx context.Context, token string) (*RefreshToken, error)
+	UpdateUserGoogleID(ctx context.Context, userID string, googleID string) error
 }
 
 type ProductStore interface {
@@ -41,6 +44,7 @@ type User struct {
 	Otp       string    `db:"otp"        json:"otp"`
 	OtpExpiry time.Time `db:"otp_expiry" json:"otp_expiry"`
 	Verified  bool      `db:"verified"   json:"verified"`
+	GoogleID  string    `db:"google_id"  json:"google_id"`
 }
 
 type RegisterUserPayload struct {
@@ -78,4 +82,20 @@ type RefreshToken struct {
 	UserID    string    `json:"user_id" db:"user_id" validate:"required"`
 	Token     string    `json:"token" db:"token" validate:"required"`
 	ExpiresAt time.Time `json:"expires_at" db:"expires_at" validate:"required"`
+}
+
+// TokenResponse represents the token sent back to client
+type TokenResponse struct {
+	Token string `json:"token"`
+	User  User   `json:"user"`
+}
+
+type GoogleUserInfo struct {
+	Sub           string `json:"sub" db:"sub"`
+	Name          string `json:"name" db:"name"`
+	GivenName     string `json:"given_name" db:"given_name"`
+	FamilyName    string `json:"family_name" db:"family_name"`
+	Picture       string `json:"picture" db:"picture"`
+	Email         string `json:"email" db:"email"`
+	EmailVerified bool   `json:"email_verified" db:"email_verified"`
 }

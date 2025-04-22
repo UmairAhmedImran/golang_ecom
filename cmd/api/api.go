@@ -8,6 +8,7 @@ import (
 	"github.com/UmairAhmedImran/ecom/service/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,6 +26,12 @@ func NewAPIServer(addr string, db *sqlx.DB) *APIServer {
 
 func (s *APIServer) RUN() error {
 	router := chi.NewRouter()
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(middleware.Logger)

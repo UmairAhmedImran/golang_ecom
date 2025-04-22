@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/UmairAhmedImran/ecom/types"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -25,7 +26,16 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*types.User, 
 	return &user, nil
 }
 
-func (s *Store) GetUserByID(ctx context.Context, id int) (*types.User, error) {
+// func (s *Store) GetUserByID(ctx context.Context, id int) (*types.User, error) {
+// 	var user types.User
+// 	err := s.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = $1", id)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return &user, nil
+// }
+
+func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	var user types.User
 	err := s.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = $1", id)
 	if err != nil {
@@ -35,7 +45,22 @@ func (s *Store) GetUserByID(ctx context.Context, id int) (*types.User, error) {
 }
 
 func (s *Store) CreateUser(ctx context.Context, user types.User) error {
-	_, err := s.db.NamedExecContext(ctx, `INSERT INTO users (first_name, last_name, email, password, otp, otp_expiry, verified) VALUES (:first_name, :last_name, :email, :password, :otp, :otp_expiry, :verified)`, &user)
+	query := `
+		INSERT INTO users (
+			first_name, last_name, email, password, 
+			otp, otp_expiry, verified, google_id
+		) VALUES (
+			:first_name, :last_name, :email, :password, 
+			:otp, :otp_expiry, :verified, :google_id
+		)
+	`
+
+	// For Google users, we need to provide a placeholder password
+	if user.Password == "" && user.GoogleID != "" {
+		user.Password = "GOOGLE_OAUTH_USER" // Just a placeholder, they'll never login with this
+	}
+
+	_, err := s.db.NamedExecContext(ctx, query, &user)
 	if err != nil {
 		return err
 	}
@@ -73,5 +98,10 @@ func (s *Store) GetRefreshToken(ctx context.Context, token string) (*types.Refre
 
 func (s *Store) DeleteRefreshToken(ctx context.Context, token string) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE token = $1`, token)
+	return err
+}
+
+func (s *Store) UpdateUserGoogleID(ctx context.Context, userID string, googleID string) error {
+	_, err := s.db.ExecContext(ctx, `UPDATE users SET google_id = $1 WHERE id = $2`, googleID, userID)
 	return err
 }

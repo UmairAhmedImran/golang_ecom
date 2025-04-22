@@ -1,17 +1,23 @@
 package user
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/UmairAhmedImran/ecom/config"
+	"github.com/UmairAhmedImran/ecom/middleware"
 	"github.com/UmairAhmedImran/ecom/service/auth"
 	"github.com/UmairAhmedImran/ecom/types"
 	"github.com/UmairAhmedImran/ecom/utils"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"github.com/joho/godotenv"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 type Handler struct {
@@ -32,7 +38,25 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/logout", h.handleLogout)
 	router.Post("/refresh", h.handleRefresh)
 	router.Post("/logout", h.handleLogout)
+	router.Get("/auth/google", h.googleAuthHandler)
+	router.Get("/auth/google/callback", h.googleCallbackHandler)
+	router.Get("/profile", middleware.AuthMiddleware(http.HandlerFunc(h.handleGetProfile)))
+}
 
+var googleOauthConfig *oauth2.Config
+
+func init() {
+	godotenv.Load()
+	googleOauthConfig = &oauth2.Config{
+		ClientID:     config.GetEnv("GOOGLE_CLIENT_ID", ""),
+		ClientSecret: config.GetEnv("GOOGLE_CLIENT_SECRET", ""),
+		RedirectURL:  config.GetEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/google/callback"),
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
 }
 
 func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -102,9 +126,8 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "refreshToken",
 		Value:    refreshToken,
 		Expires:  refreshExpiry,
-		HttpOnly: false, // HttpOnly is false because we are not using HTTPS as of now in development
-		Secure:   false, // Ensure your application is served over HTTPS
-		Path:     "/",   // Set cookie path as needed
+		HttpOnly: true, // HttpOnly is false because we are not using HTTPS as of now in development  // Ensure your application is served over HTTPS
+		Path:     "/",  // Set cookie path as needed
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -410,8 +433,7 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 		Name:     "refreshToken",
 		Value:    "",
 		Expires:  time.Unix(0, 0),
-		HttpOnly: false,
-		Secure:   false,
+		HttpOnly: true,
 		Path:     "/",
 		SameSite: http.SameSiteStrictMode,
 	})
@@ -479,8 +501,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		Name:     "refreshToken",
 		Value:    newRefreshToken,
 		Expires:  newRefreshExpiry,
-		HttpOnly: false,
-		Secure:   false,
+		HttpOnly: true,
 		Path:     "/",
 		SameSite: http.SameSiteStrictMode,
 	})
@@ -490,4 +511,121 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		"accessToken":  newAccessToken,
 		"refreshToken": newRefreshToken,
 	})
+}
+func (h *Handler) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
+	// Generate random state
+	state := fmt.Sprintf("%d", time.Now().UnixNano())
+
+	// Store state in cookie for validation during callback
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauthstate",
+		Value:    state,
+		Expires:  time.Now().Add(15 * time.Minute),
+		HttpOnly: true,
+		Path:     "/",                  // Make sure cookie is available for all paths
+		SameSite: http.SameSiteLaxMode, // Less restrictive than Strict
+	})
+
+	// Redirect to Google's OAuth server
+	url := googleOauthConfig.AuthCodeURL(state)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// 1) Validate oauth-state from the cookie
+	oauthCookie, err := r.Cookie("oauthstate")
+	if err != nil {
+		log.Printf("Error retrieving oauthstate cookie: %v", err)
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid OAuth state: cookie not found"))
+		return
+	}
+	if r.FormValue("state") != oauthCookie.Value {
+		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid OAuth state"))
+		return
+	}
+
+	// 2) Exchange code for token
+	code := r.FormValue("code")
+	tok, err := googleOauthConfig.Exchange(ctx, code)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 3) Fetch user info from Google
+	client := googleOauthConfig.Client(ctx, tok)
+	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var userInfo types.GoogleUserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 4) Look up or create the user in our DB
+	user, err := h.store.GetUserByEmail(ctx, userInfo.Email)
+	if err != nil {
+		// Not found → create, then re-fetch
+		newUser := types.User{
+			FirstName: userInfo.GivenName,
+			LastName:  userInfo.FamilyName,
+			Email:     userInfo.Email,
+			GoogleID:  userInfo.Sub,
+			Verified:  true,
+		}
+		if err := h.store.CreateUser(ctx, newUser); err != nil {
+			log.Printf("Error creating user: %v", err)
+			utils.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
+
+		// Re-fetch so we pick up the generated UUID
+		user, err = h.store.GetUserByEmail(ctx, userInfo.Email)
+		if err != nil {
+			utils.WriteError(w, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		// Already exists → ensure GoogleID is set
+		if user.GoogleID == "" {
+			if err := h.store.UpdateUserGoogleID(ctx, user.ID, userInfo.Sub); err != nil {
+				utils.WriteError(w, http.StatusInternalServerError, err)
+				return
+			}
+		}
+	}
+
+	// 5) Issue JWT with the correct UUID
+	secret := []byte(config.GetEnv("JWT_SECRET", ""))
+	jwtToken, err := auth.CreateJWT(secret, user.ID)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 6) Redirect back to frontend
+	frontendURL := config.GetEnv("FRONTEND_URL", "http://localhost:3000")
+	http.Redirect(w, r,
+		fmt.Sprintf("%s/auth/callback?token=%s", frontendURL, jwtToken),
+		http.StatusTemporaryRedirect,
+	)
+}
+
+func (h *Handler) handleGetProfile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userIDStr := ctx.Value(middleware.UserIDKey).(string)
+
+	user, err := h.store.GetUserByID(ctx, uuid.MustParse(userIDStr))
+	if err != nil {
+		utils.WriteError(w, http.StatusNotFound, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, user)
 }
