@@ -47,10 +47,10 @@ func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, err
 func (s *Store) CreateUser(ctx context.Context, user types.User) error {
 	query := `
 		INSERT INTO users (
-			first_name, last_name, email, password, 
+			full_name, email, password, 
 			otp, otp_expiry, verified, google_id
 		) VALUES (
-			:first_name, :last_name, :email, :password, 
+			:full_name, :email, :password, 
 			:otp, :otp_expiry, :verified, :google_id
 		)
 	`

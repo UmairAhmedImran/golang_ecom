@@ -37,7 +37,6 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/forgot-password/complete", h.handleForgotPasswordComplete)
 	router.Post("/logout", h.handleLogout)
 	router.Post("/refresh", h.handleRefresh)
-	router.Post("/logout", h.handleLogout)
 	router.Get("/auth/google", h.googleAuthHandler)
 	router.Get("/auth/google/callback", h.googleCallbackHandler)
 	router.Get("/profile", middleware.AuthMiddleware(http.HandlerFunc(h.handleGetProfile)))
@@ -132,9 +131,10 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return both tokens to the client
-	utils.WriteJSON(w, http.StatusOK, map[string]string{
-		"accessToken":  token,
+	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"token":        token,
 		"refreshToken": refreshToken,
+		"user":         user,
 	})
 }
 
@@ -144,6 +144,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var payload types.RegisterUserPayload
 	if err := utils.ParseJSON(r, &payload); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
+		fmt.Println("Payload working")
 		return
 	}
 
@@ -151,6 +152,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if err := utils.Validate.Struct(payload); err != nil {
 		errors := err.(validator.ValidationErrors)
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %v", errors))
+		fmt.Println("Validate Payload working")
 		return
 	}
 
@@ -182,8 +184,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Create new user
 	err = h.store.CreateUser(ctx, types.User{
-		FirstName: payload.FirstName,
-		LastName:  payload.LastName,
+		FullName:  payload.FullName,
 		Email:     payload.Email,
 		Password:  hashedPassword,
 		Otp:       otp,
@@ -192,6 +193,7 @@ func (h *Handler) handleRegister(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
+		fmt.Println("Creating User working")
 		return
 	}
 	// Send OTP to user's email
@@ -491,7 +493,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	// Generate a new access token
 	secret := []byte(config.GetEnv("JWT_SECRET", ""))
-	newAccessToken, err := auth.CreateJWT(secret, rt.UserID)
+	newtoken, err := auth.CreateJWT(secret, rt.UserID)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
@@ -508,7 +510,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 
 	// Return the new access token to the client
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
-		"accessToken":  newAccessToken,
+		"token":        newtoken,
 		"refreshToken": newRefreshToken,
 	})
 }
@@ -573,11 +575,10 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		// Not found → create, then re-fetch
 		newUser := types.User{
-			FirstName: userInfo.GivenName,
-			LastName:  userInfo.FamilyName,
-			Email:     userInfo.Email,
-			GoogleID:  userInfo.Sub,
-			Verified:  true,
+			FullName: userInfo.FamilyName + " " + userInfo.GivenName,
+			Email:    userInfo.Email,
+			GoogleID: userInfo.Sub,
+			Verified: true,
 		}
 		if err := h.store.CreateUser(ctx, newUser); err != nil {
 			log.Printf("Error creating user: %v", err)
@@ -612,7 +613,7 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	// 6) Redirect back to frontend
 	frontendURL := config.GetEnv("FRONTEND_URL", "http://localhost:3000")
 	http.Redirect(w, r,
-		fmt.Sprintf("%s/auth/callback?token=%s", frontendURL, jwtToken),
+		fmt.Sprintf("%s/callback?token=%s", frontendURL, jwtToken),
 		http.StatusTemporaryRedirect,
 	)
 }

@@ -35,8 +35,7 @@ type Product struct {
 }
 type User struct {
 	ID        string    `db:"id"         json:"id"`
-	FirstName string    `db:"first_name" json:"first_name"`
-	LastName  string    `db:"last_name"  json:"last_name"`
+	FullName  string  	`db:"full_name" json:"full_name"`
 	Email     string    `db:"email"      json:"email"`
 	Password  string    `db:"password"   json:"-"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
@@ -48,8 +47,7 @@ type User struct {
 }
 
 type RegisterUserPayload struct {
-	FirstName string `json:"first_name" db:"first_name" validate:"required"`
-	LastName  string `json:"last_name" db:"last_name" validate:"required"`
+	FullName string `json:"full_name" db:"full_name" validate:"required"`
 	Email     string `json:"email" db:"email" validate:"required,email"`
 	Password  string `json:"password" db:"password" validate:"required,min=8,max=130"`
 }
