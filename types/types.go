@@ -34,22 +34,25 @@ type Product struct {
 	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 type User struct {
-	ID        string    `db:"id"         json:"id"`
-	FullName  string  	`db:"full_name" json:"full_name"`
-	Email     string    `db:"email"      json:"email"`
-	Password  string    `db:"password"   json:"-"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
-	Otp       string    `db:"otp"        json:"otp"`
-	OtpExpiry time.Time `db:"otp_expiry" json:"otp_expiry"`
-	Verified  bool      `db:"verified"   json:"verified"`
-	GoogleID  string    `db:"google_id"  json:"google_id"`
+	ID                string    `db:"id"         json:"id"`
+	FullName          string    `db:"full_name" json:"full_name"`
+	Email             string    `db:"email"      json:"email"`
+	Password          string    `db:"password"   json:"-"`
+	CreatedAt         time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
+	Otp               string    `db:"otp"        json:"otp"`
+	OtpExpiry         time.Time `db:"otp_expiry" json:"otp_expiry"`
+	Verified          bool      `db:"verified"   json:"verified"`
+	GoogleID          string    `db:"google_id"  json:"google_id"`
+	SubscriptionPlan  string    `db:"subscription_plan" json:"subscription_plan"`
+	QuotaUsedMinutes  int       `db:"quota_used_minutes" json:"quota_used_minutes"`
+	QuotaTotalMinutes int       `db:"quota_total_minutes" json:"quota_total_minutes"`
 }
 
 type RegisterUserPayload struct {
 	FullName string `json:"full_name" db:"full_name" validate:"required"`
-	Email     string `json:"email" db:"email" validate:"required,email"`
-	Password  string `json:"password" db:"password" validate:"required,min=8,max=130"`
+	Email    string `json:"email" db:"email" validate:"required,email"`
+	Password string `json:"password" db:"password" validate:"required,min=8,max=130"`
 }
 
 type LoginUserPayload struct {

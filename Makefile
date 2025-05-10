@@ -50,3 +50,5 @@ stop_containers:
 	else \
 		echo "No containers running..."; \
 	fi
+start_psql:
+	@docker exec -it ecom-postgres psql -U postgres -d ecom

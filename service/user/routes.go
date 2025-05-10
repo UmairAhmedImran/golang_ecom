@@ -130,6 +130,30 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
+	// http.SetCookie(w, &http.Cookie{
+	// 	Name:     "token",
+	// 	Value:    token,
+	// 	Expires:  time.Now().Add(time.Hour * 24),
+	// 	HttpOnly: true,
+	// 	Path:     "/",
+	// 	SameSite: http.SameSiteStrictMode,
+	// })
+
+	// userJSON, err := json.Marshal(user)
+	// if err != nil {
+	// 	utils.WriteError(w, http.StatusInternalServerError, err)
+	// 	return
+	// }
+
+	// http.SetCookie(w, &http.Cookie{
+	// 	Name:     "user",
+	// 	Value:    string(userJSON),
+	// 	Expires:  time.Now().Add(time.Hour * 24),
+	// 	HttpOnly: true,
+	// 	Path:     "/",
+	// 	SameSite: http.SameSiteStrictMode,
+	// })
+
 	// Return both tokens to the client
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"token":        token,
@@ -418,6 +442,7 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Retrieve the refresh token from the cookie
 	cookie, err := r.Cookie("refreshToken")
+	fmt.Println("cookie", cookie)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("refresh token cookie not found"))
 		return
@@ -449,6 +474,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Get the refresh token from the HTTP-only cookie
 	cookie, err := r.Cookie("refreshToken")
+	fmt.Println("cookie", cookie)
 	if err != nil {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token cookie not found"))
 		return
@@ -461,6 +487,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("invalid refresh token"))
 		return
 	}
+	fmt.Println("rt", rt)
 	if time.Now().After(rt.ExpiresAt) {
 		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("refresh token expired"))
 		return
@@ -575,7 +602,7 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		// Not found → create, then re-fetch
 		newUser := types.User{
-			FullName: userInfo.FamilyName + " " + userInfo.GivenName,
+			FullName: userInfo.GivenName + " " + userInfo.FamilyName,
 			Email:    userInfo.Email,
 			GoogleID: userInfo.Sub,
 			Verified: true,

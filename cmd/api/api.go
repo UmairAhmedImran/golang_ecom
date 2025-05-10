@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/UmairAhmedImran/ecom/service/products"
 	"github.com/UmairAhmedImran/ecom/service/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -37,12 +36,9 @@ func (s *APIServer) RUN() error {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	userStore := user.NewStore(s.db)
-	productStore := products.NewStore(s.db)
 	router.Route("/api/v1", func(r chi.Router) {
 		userHandler := user.NewHandler(userStore)
 		userHandler.RegisterRoutes(r) // Pass the router `r` here
-		productHandler := products.NewHandler(productStore)
-		productHandler.RegisterRoutes(r)
 	})
 
 	log.Println("server listening on port: ", s.addr)
