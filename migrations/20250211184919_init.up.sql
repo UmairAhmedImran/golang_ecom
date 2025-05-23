@@ -92,10 +92,6 @@ CREATE TABLE refresh_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     token VARCHAR(512) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    revoked BOOLEAN DEFAULT FALSE,
-    user_agent TEXT,
-    ip_address TEXT
+    expires_at TIMESTAMP NOT NULL
 );
 

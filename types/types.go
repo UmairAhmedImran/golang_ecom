@@ -80,6 +80,7 @@ type ForgotPasswordCompletePayload struct {
 }
 
 type RefreshToken struct {
+	ID        string    `json:"id" db:"id" validate:"required"`
 	UserID    string    `json:"user_id" db:"user_id" validate:"required"`
 	Token     string    `json:"token" db:"token" validate:"required"`
 	ExpiresAt time.Time `json:"expires_at" db:"expires_at" validate:"required"`

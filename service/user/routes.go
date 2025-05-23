@@ -39,7 +39,7 @@ func (h *Handler) RegisterRoutes(router chi.Router) {
 	router.Post("/refresh", h.handleRefresh)
 	router.Get("/auth/google", h.googleAuthHandler)
 	router.Get("/auth/google/callback", h.googleCallbackHandler)
-	router.Get("/profile", middleware.AuthMiddleware(http.HandlerFunc(h.handleGetProfile)))
+	router.Get("/cookie", middleware.AuthMiddleware(http.HandlerFunc(h.handleGetProfile)))
 }
 
 var googleOauthConfig *oauth2.Config
@@ -106,8 +106,10 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Define a refresh token expiry time, for example, 7 days
+	accessExpiry := time.Now().Add(15 * time.Minute)
 	refreshExpiry := time.Now().Add(30 * 24 * time.Hour)
 
+	// secure := config.GetEnv("ENV", "development") == "production"
 	// Store the refresh token in your database
 	rt := types.RefreshToken{
 		UserID:    user.ID,
@@ -125,40 +127,24 @@ func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
 		Name:     "refreshToken",
 		Value:    refreshToken,
 		Expires:  refreshExpiry,
+		Secure:   false,
 		HttpOnly: true, // HttpOnly is false because we are not using HTTPS as of now in development  // Ensure your application is served over HTTPS
 		Path:     "/",  // Set cookie path as needed
-		SameSite: http.SameSiteStrictMode,
+		// SameSite: http.SameSiteNoneMode,
 	})
 
-	// http.SetCookie(w, &http.Cookie{
-	// 	Name:     "token",
-	// 	Value:    token,
-	// 	Expires:  time.Now().Add(time.Hour * 24),
-	// 	HttpOnly: true,
-	// 	Path:     "/",
-	// 	SameSite: http.SameSiteStrictMode,
-	// })
-
-	// userJSON, err := json.Marshal(user)
-	// if err != nil {
-	// 	utils.WriteError(w, http.StatusInternalServerError, err)
-	// 	return
-	// }
-
-	// http.SetCookie(w, &http.Cookie{
-	// 	Name:     "user",
-	// 	Value:    string(userJSON),
-	// 	Expires:  time.Now().Add(time.Hour * 24),
-	// 	HttpOnly: true,
-	// 	Path:     "/",
-	// 	SameSite: http.SameSiteStrictMode,
-	// })
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    token,
+		Expires:  accessExpiry,
+		Secure:   false,
+		HttpOnly: true,
+		Path:     "/",
+	})
 
 	// Return both tokens to the client
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
-		"token":        token,
-		"refreshToken": refreshToken,
-		"user":         user,
+		"user": user,
 	})
 }
 
@@ -442,7 +428,6 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	// Retrieve the refresh token from the cookie
 	cookie, err := r.Cookie("refreshToken")
-	fmt.Println("cookie", cookie)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("refresh token cookie not found"))
 		return
@@ -462,7 +447,23 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Unix(0, 0),
 		HttpOnly: true,
 		Path:     "/",
-		SameSite: http.SameSiteStrictMode,
+		// SameSite: http.SameSiteNoneMode,
+		Secure: false,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Path:     "/",
+		Secure:   false,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauthstate",
+		Value:    "",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Path:     "/",
 	})
 
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
@@ -472,6 +473,7 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
+	fmt.Println("Cookkieesss", r.Cookies())
 	// Get the refresh token from the HTTP-only cookie
 	cookie, err := r.Cookie("refreshToken")
 	fmt.Println("cookie", cookie)
@@ -480,6 +482,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	oldRefreshToken := cookie.Value
+	fmt.Println("oldRefreshToken", oldRefreshToken)
 
 	// Validate the old refresh token from the database
 	rt, err := h.store.GetRefreshToken(ctx, oldRefreshToken)
@@ -494,7 +497,7 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	// At this point, the old refresh token is valid
 	// Invalidate/delete the old refresh token (rotation)
-	if err := h.store.DeleteRefreshToken(ctx, rt.UserID); err != nil {
+	if err := h.store.DeleteRefreshToken(ctx, rt.Token); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -505,13 +508,14 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	newRefreshExpiry := time.Now().Add(30 * 24 * time.Hour)
+	accessExpiry := time.Now().Add(15 * time.Minute)
+	refreshExpiry := time.Now().Add(30 * 24 * time.Hour) // for refresh
 
 	// Store the new refresh token in the database
 	newRT := types.RefreshToken{
 		Token:     newRefreshToken,
 		UserID:    rt.UserID,
-		ExpiresAt: newRefreshExpiry,
+		ExpiresAt: refreshExpiry,
 	}
 	if err := h.store.CreateRefreshToken(ctx, newRT); err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
@@ -529,16 +533,26 @@ func (h *Handler) handleRefresh(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "refreshToken",
 		Value:    newRefreshToken,
-		Expires:  newRefreshExpiry,
+		Expires:  refreshExpiry,
+		Secure:   false,
 		HttpOnly: true,
 		Path:     "/",
-		SameSite: http.SameSiteStrictMode,
+		// SameSite: http.SameSiteNoneMode,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    newtoken,
+		Expires:  accessExpiry,
+		Secure:   false,
+		HttpOnly: true,
+		Path:     "/",
+		// SameSite: http.SameSiteNoneMode,
 	})
 
 	// Return the new access token to the client
 	utils.WriteJSON(w, http.StatusOK, map[string]string{
-		"token":        newtoken,
-		"refreshToken": newRefreshToken,
+		"token": newtoken,
 	})
 }
 func (h *Handler) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
@@ -551,8 +565,8 @@ func (h *Handler) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 		Value:    state,
 		Expires:  time.Now().Add(15 * time.Minute),
 		HttpOnly: true,
-		Path:     "/",                  // Make sure cookie is available for all paths
-		SameSite: http.SameSiteLaxMode, // Less restrictive than Strict
+		Path:     "/", // Make sure cookie is available for all paths
+		// SameSite: http.SameSiteLaxMode, // Less restrictive than Strict
 	})
 
 	// Redirect to Google's OAuth server
@@ -562,19 +576,14 @@ func (h *Handler) googleAuthHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// 1) Validate oauth-state from the cookie
+	// 1. Validate state
 	oauthCookie, err := r.Cookie("oauthstate")
-	if err != nil {
-		log.Printf("Error retrieving oauthstate cookie: %v", err)
-		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid OAuth state: cookie not found"))
-		return
-	}
-	if r.FormValue("state") != oauthCookie.Value {
+	if err != nil || r.FormValue("state") != oauthCookie.Value {
 		utils.WriteError(w, http.StatusBadRequest, fmt.Errorf("invalid OAuth state"))
 		return
 	}
 
-	// 2) Exchange code for token
+	// 2. Exchange code for token
 	code := r.FormValue("code")
 	tok, err := googleOauthConfig.Exchange(ctx, code)
 	if err != nil {
@@ -582,7 +591,7 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 3) Fetch user info from Google
+	// 3. Get user info from Google
 	client := googleOauthConfig.Client(ctx, tok)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
 	if err != nil {
@@ -597,10 +606,9 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 4) Look up or create the user in our DB
+	// 4. Look up or create user
 	user, err := h.store.GetUserByEmail(ctx, userInfo.Email)
 	if err != nil {
-		// Not found → create, then re-fetch
 		newUser := types.User{
 			FullName: userInfo.GivenName + " " + userInfo.FamilyName,
 			Email:    userInfo.Email,
@@ -608,28 +616,18 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 			Verified: true,
 		}
 		if err := h.store.CreateUser(ctx, newUser); err != nil {
-			log.Printf("Error creating user: %v", err)
 			utils.WriteError(w, http.StatusInternalServerError, err)
 			return
 		}
-
-		// Re-fetch so we pick up the generated UUID
-		user, err = h.store.GetUserByEmail(ctx, userInfo.Email)
-		if err != nil {
+		user, _ = h.store.GetUserByEmail(ctx, userInfo.Email)
+	} else if user.GoogleID == "" {
+		if err := h.store.UpdateUserGoogleID(ctx, user.ID, userInfo.Sub); err != nil {
 			utils.WriteError(w, http.StatusInternalServerError, err)
 			return
-		}
-	} else {
-		// Already exists → ensure GoogleID is set
-		if user.GoogleID == "" {
-			if err := h.store.UpdateUserGoogleID(ctx, user.ID, userInfo.Sub); err != nil {
-				utils.WriteError(w, http.StatusInternalServerError, err)
-				return
-			}
 		}
 	}
 
-	// 5) Issue JWT with the correct UUID
+	// 5. Generate access and refresh tokens
 	secret := []byte(config.GetEnv("JWT_SECRET", ""))
 	jwtToken, err := auth.CreateJWT(secret, user.ID)
 	if err != nil {
@@ -637,7 +635,49 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// 6) Redirect back to frontend
+	refreshToken, err := auth.GenerateRandomToken(32)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	accessExpiry := time.Now().Add(15 * time.Minute)
+	refreshExpiry := time.Now().Add(30 * 24 * time.Hour)
+
+	// secure := config.GetEnv("ENV", "development") == "production"
+	// Store the refresh token in your database
+	rt := types.RefreshToken{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: refreshExpiry,
+	}
+	fmt.Println(rt)
+	if err := h.store.CreateRefreshToken(ctx, rt); err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	// 6. Store refresh token (optional: in DB or in-memory)
+	// e.g., h.tokenStore.Save(refreshToken)
+
+	// 7. Set refresh token as HTTP-only cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Path:     "/",
+		Expires:  refreshExpiry,
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "token",
+		Value:    jwtToken,
+		Expires:  accessExpiry,
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	// 8. Redirect to frontend with access token (in URL)
 	frontendURL := config.GetEnv("FRONTEND_URL", "http://localhost:3000")
 	http.Redirect(w, r,
 		fmt.Sprintf("%s/callback?token=%s", frontendURL, jwtToken),
@@ -647,8 +687,12 @@ func (h *Handler) googleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	userIDStr := ctx.Value(middleware.UserIDKey).(string)
-
+	userIDStr, ok := ctx.Value(middleware.UserIDKey).(string)
+	fmt.Println("userIDStr", userIDStr)
+	if !ok {
+		utils.WriteError(w, http.StatusUnauthorized, fmt.Errorf("user ID not found in context"))
+		return
+	}
 	user, err := h.store.GetUserByID(ctx, uuid.MustParse(userIDStr))
 	if err != nil {
 		utils.WriteError(w, http.StatusNotFound, err)

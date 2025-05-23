@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/UmairAhmedImran/ecom/types"
@@ -25,15 +26,6 @@ func (s *Store) GetUserByEmail(ctx context.Context, email string) (*types.User, 
 	}
 	return &user, nil
 }
-
-// func (s *Store) GetUserByID(ctx context.Context, id int) (*types.User, error) {
-// 	var user types.User
-// 	err := s.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = $1", id)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return &user, nil
-// }
 
 func (s *Store) GetUserByID(ctx context.Context, id uuid.UUID) (*types.User, error) {
 	var user types.User
@@ -89,10 +81,14 @@ func (s *Store) CreateRefreshToken(ctx context.Context, token types.RefreshToken
 
 func (s *Store) GetRefreshToken(ctx context.Context, token string) (*types.RefreshToken, error) {
 	var rt types.RefreshToken
+	fmt.Println("token in store", token)
+	fmt.Println("rt before query", rt)
 	err := s.db.GetContext(ctx, &rt, `SELECT * FROM refresh_tokens WHERE token = $1`, token)
 	if err != nil {
+		fmt.Println("error in get refresh token", err)
 		return nil, err
 	}
+	fmt.Println("rt after query", rt)
 	return &rt, nil
 }
 
